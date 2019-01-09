@@ -10,16 +10,23 @@ c <- ncol(ozone)
 
 str(ozone)
 
+ozoneR[1,1]
+
+
 ozoneR<- ozone[2:ncol(ozone)]
+data<- rep(NA,nrow(ozoneR) * ncol(ozoneR) )
+count = 1;
+for(i in 1:nrow(ozoneR)){
+  for(j in 1:ncol(ozoneR)){
+    data[count] = ozoneR[i,j]
+    count = count + 1;
+    
+  }
+}
 
-
-#part a
-mean<- apply(ozoneR,2,function(x)mean(x, na.rm = T))
-std<- apply(ozoneR,2,function(x)sd(x, na.rm = T))
-pMiss<- apply(ozoneR, 2, function(x)(sum(1 * is.na(x))/nrow(ozoneR)))
-
-table<- data.frame(mean = mean , std = std, pMiss = pMiss)
-
+mean(data, na.rm = T)
+std<- apply(data,2,function(x)sd(x, na.rm = T))
+pMiss<- apply(data, 2, function(x)(sum(1 * is.na(x))/length(data)))
 
 
 #part b
