@@ -1,4 +1,6 @@
 library(ggplot2)
+library(purrr)
+library(tidyr)
 
 
 
@@ -23,6 +25,7 @@ sum(1 * is.na(data))/length(data)
 r <- nrow(ozone)
 c <- ncol(ozone)
 
+#mplot = vector for mean, sPlot = vector for ds, pPlot = percent missing
 mPlot<- rep(0, r); sPlot<- rep(0, r); pPlot<- rep(0,r)
 
 for(i in 1:r){
@@ -38,8 +41,6 @@ for(i in 1:r){
 }
 
 #plotting the histograms
-pwalk(list(list(mPlot, sPlot, pPlot),list("red", "green", "blue"),list("mean", "sd", "% missing")), ~hist(x = ..1, col =..2, xlab = ..3 ))
-
 list(list(mPlot, sPlot, pPlot),list("red", "green", "blue"),list("mean", "sd", "% missing"))%>%
 pwalk(~hist(x = ..1, col =..2, xlab = ..3 ))
 
