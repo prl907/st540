@@ -5,23 +5,12 @@ library(ggplot2)
 #import file from desktop
 ozone<- read.csv("C:/Users/prl90/Documents/st540/ozone.csv", header=T)
 
-r <- nrow(ozone)
-c <- ncol(ozone)
 
+#part a
 
-ozoneR<- ozone[2:ncol(ozone)]
+#flatten data frame
+data<- ozone[2:ncol(ozone)]%>%unlist
 
-
-data<- rep(NA,nrow(ozoneR) * ncol(ozoneR) )
-count = 1;
-for(i in 1:nrow(ozoneR)){
-  for(j in 1:ncol(ozoneR)){
-    data[count] = ozoneR[i,j]
-    count = count + 1;
-    
-  }
-}
-data<- unlist(ozoneR)
 #statistics
 mean(data, na.rm = T)
 sd(data, na.rm = T)
@@ -30,11 +19,11 @@ sum(1 * is.na(data))/length(data)
 
 #part b
 
-#value extracted from the columns storeage vector
+#value extracted from the columns storage vector
+r <- nrow(ozone)
+c <- ncol(ozone)
 
-mPlot<- rep(0, r)
-sPlot<- rep(0, r)
-pPlot<- rep(0,r)
+mPlot<- rep(0, r); sPlot<- rep(0, r); pPlot<- rep(0,r)
 
 for(i in 1:r){
   v=rep(0, c-1)
@@ -48,9 +37,14 @@ for(i in 1:r){
   }
 }
 
+#plotting the histograms
+pwalk(list(list(mPlot, sPlot, pPlot),list("red", "green", "blue"),list("mean", "sd", "% missing")), ~hist(x = ..1, col =..2, xlab = ..3 ))
 
+list(list(mPlot, sPlot, pPlot),list("red", "green", "blue"),list("mean", "sd", "% missing"))%>%
+pwalk(~hist(x = ..1, col =..2, xlab = ..3 ))
 
-walk(list(mPlot, sPlot, pPlot), hist)
-
+#linear regression model with mean as response
+model<- lm(mPlot~sPlot + pPlot)
+summary(model)
 
 
