@@ -1,0 +1,82 @@
+---
+title: "HW7"
+author: "Robin"
+date: "March 5, 2019"
+output: word_document
+---
+
+
+### Part C
+```{r message = F, error=FALSE, warning=F,echo = T}
+library(invgamma)
+```
+
+
+```{r}
+
+#yi
+Y<- c(1:10)
+
+#n
+n<- length(Y)
+
+
+# of simulations
+S<- 25000
+
+samples<- matrix(NA, nrow = S, ncol = 11)
+
+#names to assign to matrix
+colnames(samples)<- c("s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "B")
+
+
+#inital values 
+sigma <- 1
+b<- .1
+
+#assign by Dr Reich
+a<- 1
+
+
+
+
+#Gibbs sampler 
+for(s in 1:S){
+  for(i in 1:n){
+    #sigma
+    sigma[i] <- 1/(rgamma(1,.5 + a, (Y[i]^2 + 2* b)/2))
+  }
+  #b
+  b <- rgamma(1,n*a + 1, 1+sum(1/sigma)) 
+  samples[s,] <- c(sigma, b)
+}
+
+
+# getting the inverse gamma rate and shape
+para<- function(x){
+  m = mean(x)
+  v = var(x)
+  a = (m^2/v) + 2
+  b = m * (a- 1)
+  return(c(a, b))
+}
+
+#Plot of sigma
+# op <- par(pty="m", mfrow=c(5, 2), mar=c(4.2, 4.2, 1, 1))
+for(i in 1:10){
+  temp=samples[,i]
+  #selecting only the values less than 200 for hist
+  values= temp[temp<200]
+  hist(values, freq = F, col = "Wheat", xlab =paste("sigma^2", i), main =  paste("Histogram of sigma^2", i), ylim = c(0, .04))
+  x= seq(0, 200, length = length(values))
+  
+  #gamma distrubtion overlay
+  curve(dinvgamma(x,para(values)[1],para(values)[2]), add = TRUE, col = "red");
+}
+# par(op)
+
+
+#histogram of B
+hist(samples[,11], freq = F, col = "wheat", main = "Histogram of b")
+     
+```

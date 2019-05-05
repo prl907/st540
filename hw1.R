@@ -1,32 +1,35 @@
+
 library(ggplot2)
-library(purrr)
-library(tidyr)
 
 
 
 #import file from desktop
-ozone<- read.csv("C:/Users/prl90/Documents/st540/ozone.csv", header=T)
+ozone<- read.csv("C:/Users/prl90/Documents/ST540/ozone.csv", header=T)
 
-
-#part a
-
-#flatten data frame
-data<- ozone[2:ncol(ozone)]%>%unlist
-
-#statistics
-mean(data, na.rm = T)
-sd(data, na.rm = T)
-sum(1 * is.na(data))/length(data)
-
-
-#part b
-
-#value extracted from the columns storage vector
 r <- nrow(ozone)
 c <- ncol(ozone)
 
-#mplot = vector for mean, sPlot = vector for ds, pPlot = percent missing
-mPlot<- rep(0, r); sPlot<- rep(0, r); pPlot<- rep(0,r)
+str(ozone)
+
+ozoneR<- ozone[2:ncol(ozone)]
+
+
+#part a
+mean<- apply(ozoneR,2,function(x)mean(x, na.rm = T))
+std<- apply(ozoneR,2,function(x)sd(x, na.rm = T))
+pMiss<- apply(ozoneR, 2, function(x)(sum(1 * is.na(x))/nrow(ozoneR)))
+
+table<- data.frame(mean = mean , std = std, pMiss = pMiss)
+
+
+
+#part b
+#using the loop approach to get values
+#value extracted from the columns 
+
+mPlot<- rep(0, r)
+sPlot<- rep(0, r)
+pPlot<- rep(0,r)
 
 for(i in 1:r){
   v=rep(0, c-1)
@@ -40,12 +43,10 @@ for(i in 1:r){
   }
 }
 
-#plotting the histograms
-list(list(mPlot, sPlot, pPlot),list("red", "green", "blue"),list("mean", "sd", "% missing"))%>%
-pwalk(~hist(x = ..1, col =..2, xlab = ..3 ))
 
-#linear regression model with mean as response
-model<- lm(mPlot~sPlot + pPlot)
-summary(model)
 
+df<- map(list(mPlot,sPlot, pPlot), ~data.frame(x= .x))
+dfC<- list("green", "red", "blue")
+
+map2(df,dfC, ~(ggplot()+ geom_histogram(data = ..1, bins = 5,aes(x = ..1$x),  fill = ..2 )))
 

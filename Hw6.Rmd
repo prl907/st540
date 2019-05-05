@@ -1,0 +1,151 @@
+---
+title: "Hw6"
+author: "Robin Baldeo"
+date: "February 17, 2019"
+output: word_document
+---
+
+```{r message = F, error=FALSE, warning=F,echo = F}
+library(purrr)
+library(tidyr)
+library(dplyr)
+library(knitr)
+```
+
+###2.4.1
+##(a)
+
+$\overline{Y}$ $\frac{n}{n+ m}$ $\pm$ 1.96 $\sigma$ $(n+ m)^{-.5}$
+
+
+
+##(b)
+```{r}
+
+n<- 100000
+set.seed(100)
+#random numbers generated
+data<- rnorm(n, 0, 1)
+#mean
+me<- mean(data)
+#variance
+v<- var(data)
+
+
+#frequentist ci
+#y-bar +/- (var/n)^.5
+
+fLow<-  me-1.96* (v/n)^.5; 
+
+fHigh<- me+1.96 * (v/n)^.5;fHigh
+
+#frequentist ci
+cbind(fLow, fHigh)
+
+#using formula from a with m = 0
+bCi<- function(m){
+  w = n/(n+m)
+  bm= (w * me) + (1-w) * 0
+  bv=  (v/(n+m))^.5
+  return(cbind("bLow" = bm- 1.96* bv, "bHi" = bm+ 1.96* bv))
+}
+
+#bayes ci
+bCi(0)
+
+```
+
+We can achieve the frequentist confidence interval by using m = 0.As shown in the above simulation, when m = 0 the frequentist ci upper and lower bounds matches the upper and lower bounds after using the formula in part a.
+
+###2.4.5
+
+```{r}
+#function used to do simulation 
+sp<- function( c){
+  x<- rnorm(1000000, 0,1)
+  a = rnorm(1000000, 0,c^2)
+  b = rnorm(1000000, 0, c^ 2)
+  return(exp(a + x* b)/ (1 + exp(a + x* b)))
+}
+
+
+
+
+#plots
+op <- par(pty="m", mfrow=c(5, 2), mar=c(4.2, 4.2, 1, 1))
+
+  pwalk(list((seq(1, 1.25, length = 10))), ~{hist(sp(..1), col = "wheat",  freq= F, main = paste("c =", ..1))})
+
+par(op)
+```
+
+
+the final c = 1.13889, and since the histogram looks uniform I would say the prior is uninformative. 
+
+
+
+###2.4.6
+##(a)
+```{r}
+#question 6
+
+#y = 1.5 * 50 = 75
+#n = 50
+
+#function to plot
+gammaPost<- function(a, b){
+  x<- seq(0,10, length = 100)
+  y<- dgamma(x, 75 + a, 50 + b)
+  
+  plot(x,y , type = "l", main = paste("Posterior with a =", a, "b=", b))
+  lines(x, dgamma(x, a,b), col = "red")
+  legend("topright", legend = c("posterior", "prior"),col=c("black", "red"), lty=c(1,1), bty = "n")
+}
+
+#funcation for summary
+postSum<- function(a,b){
+  #ci
+  ci =  qgamma(c(.025, .975), 75 + a, 50 + b);
+  #mean
+  mean= (75 + a)/ (50 + b)
+  #std
+  std= sqrt((75 + a)/ (50 + b)^2)
+  cbind("a" = a, "b" = b, "lowCi" = ci[1], "upperCi" = ci[2], "mean" = mean, "std" = std)%>%as.data.frame()%>%return()
+}
+
+
+#a
+# a=b=.01
+gammaPost(.01, .01)
+postSum(.01, .01)
+```
+
+##(b)
+```{r}
+#b
+# a=b=.1
+gammaPost(.1, .1)
+postSum(.1, .1)
+
+```
+When a=b=.1 it appears the posterior is not too sensitive to the prior. The summary statistics have not changed too much when compared to part(a) 
+
+```{r}
+# a= b = 1
+gammaPost(1, 1)
+postSum(1, 1)
+```
+Comapred to a=b=.01 and a=b=.1, the summary has changed slightly. So it appears the posterior is slightly sensitive to the prior when a=b=1. 
+
+##(c)
+(i)
+Gamma(.015, .01) gives an expectation of 1.5.
+
+(ii)
+Gamma(.014, .01) gives an expectation of 1.4 which is within the 10% range of the mayo rate. 
+
+(iii)
+Uniform(0,1), gives a prior that is not a function of the mayo rate.
+
+
+

@@ -1,0 +1,309 @@
+---
+title: "Hw 8"
+author: "Robin"
+date: "March 19, 2019"
+output: word_document
+---
+```{r message = F, error=FALSE, warning=F,echo = T}
+  library(rjags)
+```
+
+
+
+
+
+###Question 4(C)(Code Submitted in HW 7)
+```{r}
+
+#data
+Y<- c(1:10)
+
+#n
+n<- length(Y)
+
+
+# of simulations
+S<- 25000
+
+samples<- matrix(NA, nrow = S, ncol = 11)
+
+#names to assign to matrix
+colnames(samples)<- c("b", "s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10")
+
+
+#inital values 
+sigma <- 1
+a<- 1
+b<- .1
+
+
+
+#Gibbs sampler 
+for(s in 1:S){
+  for(i in 1:n){
+    #sigma
+    sigma[i] <- 1/(rgamma(1,.5 + a, ((Y[i]^2) + 2* b)/2))
+  }
+  #b
+  b <- rgamma(1,n*a + 1, 1+sum(1/sigma)) 
+  samples[s,] <- c(b, sigma)
+}
+
+median<- as.matrix(apply(samples,2,median))
+
+```
+
+
+###Question 4(D)
+```{r}
+#setting values to be passed to jags
+data<- list(Y= Y, n = n)
+
+#model string construction 
+model_string <- textConnection("model{
+         # Likelihood
+         for(i in 1:n){
+          Y[i] ~ dnorm(0, tau[i])
+         }
+         # Priors
+         for(i in 1:n){
+           tau[i] ~ dgamma(1,b)
+           sigma[i]<- 1/tau[i]
+         }
+         
+         b ~ dgamma(1,1)
+         
+         }")
+
+#set inital value 
+inits <- list( b = .1)
+model <- jags.model(model_string,data = data, inits=inits, n.chains=2 ,quiet=TRUE)
+
+
+
+update(model, 10000, progress.bar="none")
+
+
+params  <- c("sigma","b")
+samples <- coda.samples(model, 
+                        variable.names=params, 
+                        n.iter=25000, progress.bar="none")
+
+summary(samples)
+```
+
+```{r}
+#compared JAGS median and R median 
+data<- as.data.frame((summary(samples)[2])$quantiles[,3])
+colnames(data)[1]<- "Median_Jags"
+data$Median_R<- median
+data
+```
+Since the parameters are right skewed I used the median from jags and R(part c). The table above shows that the two method produce near identical medians.
+
+###Question 4(Convergence Test)
+```{r}
+#convergence test
+# visual 
+plot(samples)
+
+
+# #auto corr
+# autocorr.plot(samples)
+# 
+# #chain 1
+# autocorr(samples[[1]], lag = 1)
+# 
+# #chain 2
+# autocorr(samples[[2]], lag = 1)
+
+# Low ESS indicates poor convergence, size sample apperas to be large
+effectiveSize(samples)
+
+# R greater than 1.1 indicates poor convergence 
+gelman.diag(samples)
+
+
+# |z| greater than 2 indicates poor convergence
+# chain 1
+geweke.diag(samples[[1]])
+
+#chain 2
+geweke.diag(samples[[2]])
+
+```
+From the Geweke test sigma 8 has poor convergence in chain 1. This is also confirmed with the Rubin test across all two chains , where sigma 8 is greater than 1.1. The other parameters show good convergence across both chains according to the Gelman Rubin test. . Also our sample size are large enough based on effective sample size test. 
+
+
+###Question 6(D)
+
+```{r}
+set.seed(1)
+#  overall proportions 
+q<- c(.845, .847, .880, .674, .909, .898, .770, .801, .802, .875)
+# number of made
+Y<- c(64, 72, 55, 27, 75, 24, 28, 66, 40, 13)
+# number of attempts
+n<- c(75,95,63, 39, 83, 26, 41, 82, 54, 16)
+
+N<-length(Y)
+
+S<- 50000
+#set intial values 
+
+theta<- .5
+
+m<- 0.5
+
+#log posterior
+log_post<- function(theta, n, q, m, Y){
+  like= sum(dbinom(Y, size = n,theta, log = T ))
+  a = q * exp(m)
+  b = (1-q)* exp(m)
+  prior1= sum(dbeta(theta, a,b, log = T))
+  prior2= dnorm(m,0, 10, log = T)
+  return(like + prior1 + prior2)
+}
+
+
+#matrix to hold results
+samples<- matrix(NA, nrow = S, ncol = 11)
+colnames(samples)<- c("m", paste("Theta_", sep= "", 1:10))
+
+
+#canidate std
+can_sd<- .011
+
+#tuning  variables 
+burn  <- 5000      # Length of burn-in period for tuning
+check <- 100  # Iterations between checks of the acceptance rate     
+att   <- 0  # Keep track of the number of MH attempts
+acc   <- 0
+
+
+
+
+for(i in 1: S){
+  
+  #metro sampling 
+  can = rnorm(1,m, can_sd)
+  logR   <- log_post(theta, n, q, can, Y)-log_post(theta, n, q, m, Y) 
+  #record attemps
+  att = att + 1
+  if(log(runif(1))<logR){
+    m <- can
+    acc<- acc + 1
+  }
+
+  
+  #tunning
+  if(i<burn & att==check){
+    if(acc/att<0.2){can_sd<-can_sd*0.02}
+    if(acc/att>0.6){can_sd<-can_sd*.06}
+    acc <- att <- 0
+  }
+
+  #gibbs
+  for( j in 1: N){
+    a<- Y[j]+ q[j]* exp(m)
+    b<- n[j] - Y[j] + exp(m) * (1-q[j])
+    theta[j]= rbeta(1,a, b)
+  }
+  
+  samples[i,]= c(m, theta)
+}
+
+
+x<- merge(as.matrix(colMeans(samples)),t(as.matrix(apply(samples, 2,quantile, probs =  c(0.025, 0.975)))), by = "row.names",all = TRUE )
+
+x$id<- ifelse(substring(x$Row.names, 7) != "", as.double(substring(x$Row.names, 7)), 0)
+
+colnames(x)[1]<- "para"
+colnames(x)[2]<- "mean"
+
+sum<- (x[order(x$id), ])[,1:4]
+
+
+sum
+```
+Table above shows the mean and 95% CI for my hand written MCMC. 
+
+
+
+###Question 6(E)
+```{r}
+
+#data passed to JAGS
+data<- list(Y= Y, n = n, q = q , N=N)
+
+
+
+model_string <- textConnection("model{
+   # Likelihood
+    for(i in 1:N){
+      Y[i] ~ dbinom(theta[i], n[i] )
+    }
+   # Priors
+    for(i in 1:N){
+      theta[i] ~ dbeta(exp(m)* q[i], exp(m)* (1-q[i]))
+    }
+
+    m ~ dnorm(0,10)
+
+ }")
+
+
+model <- jags.model(model_string,data = data, n.chains=2 ,quiet=TRUE)
+
+update(model, 10000, progress.bar="none")
+
+
+params  <- c("theta","m")
+samples <- coda.samples(model, 
+                        variable.names=params, 
+                        n.iter=25000, progress.bar="none")
+
+#summary output
+summary(samples)
+```
+Summary output from JAGS. 
+
+
+```{r}
+#compariosn of mean
+
+com<- as.data.frame(sum[1:2])
+colnames(com)[2]<-"Mean_R"
+d<- summary(samples)[1]
+com$Mean_jags<- d$statistics[,1]
+
+com
+
+```
+I used the mean to do a comparison. The mean values for each of the 11 parameters are very close across both methods. As shown in the table above.
+
+
+###Question 6(Convergence Test)
+
+```{r}
+#convergence test
+# visual 
+plot(samples)
+
+
+# #auto corr
+# autocorr.plot(samples)
+
+# Low ESS indicates poor convergence, size sample apperas to be large
+effectiveSize(samples)
+
+# R greater than 1.1 indicates poor convergence, therefore we have good convergence. 
+gelman.diag(samples)
+
+
+# |z| greater than 2 indicates poor convergence
+geweke.diag(samples[[1]])
+
+
+```
+Chain converge according to Gelman Test and our sample size is adequately large enough to indicate convergence. 

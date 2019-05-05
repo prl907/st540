@@ -1,0 +1,59 @@
+---
+title: "ST 540 hw1"
+author: "Robin Baldeo"
+date: "January 11, 2019"
+output: word_document
+---
+
+```{r message = F, error=FALSE, warning=F,echo = T}
+library(purrr)
+library(tidyr)
+library(knitr)
+```
+
+###(Part A)
+```{r}
+#import file from desktop
+ozone<- read.csv("C:/Users/prl90/Documents/st540/ozone.csv", header=T)
+
+#flatten data frame
+data<- ozone[2:ncol(ozone)]%>%unlist
+
+#statistics
+data.frame("Mean" = mean(data, na.rm = T), "Sd" = sd(data, na.rm = T), "PerMissing" = sum(1 * is.na(data))/length(data))%>%kable
+```
+
+###(Part B)
+```{r}
+#value extracted from the columns storage vector
+r <- nrow(ozone)
+c <- ncol(ozone)
+
+#mplot = vector for mean, sPlot = vector for var, pPlot = percent missing
+mPlot<- rep(0, r); sPlot<- rep(0, r); pPlot<- rep(0,r)
+
+for(i in 1:r){
+  v=rep(0, c-1)
+  for(j in 2:c){
+    v[j - 1] = ozone[i,j]
+    if(j == c){
+      mPlot[i] = ifelse(is.nan(mean(v, na.rm = T)),0,mean(v, na.rm = T) )
+      sPlot[i] = ifelse(is.nan(var(v, na.rm = T)) ,0,var(v, na.rm = T)) 
+      pPlot[i] = (sum(1 * is.na(v))/c)
+    }
+  }
+}
+
+#plotting the histograms
+da<- list(list(mPlot, sPlot, pPlot),list("red", "green", "blue"),list("mean", "var", "% missing"))
+op <- par(pty="m", mfrow=c(3, 3), mar=c(4.2, 4.2, 1, 1))
+da%>% pwalk(~hist(x = ..1, col =..2, xlab = ..3 , main = paste("Histogram of ", ..3)))
+da%>%pwalk(~plot(..1, col = ..2, ylab = ..3, xlab = "points",  pch = 1, main = paste("Plot of ", ..3) ))
+par(op)
+```
+
+###(Part C)
+```{r}
+model<- lm(mPlot~sPlot + pPlot)
+summary(model)
+```

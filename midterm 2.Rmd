@@ -1,0 +1,100 @@
+---
+title: "Midterm 2"
+author: "Robin"
+date: "April 14, 2019"
+output:
+  html_document:
+    df_print: paged
+  word_document: default
+---
+<style>
+    p {line-height: 2em;}
+    body{
+      font-family: Helvetica;
+      font-size: 11pt;
+    }
+    div {
+      text-align: justify;
+      text-justify: inter-word;
+    }
+</style>
+
+```{r message = F, error=FALSE, warning=F,echo = F}
+library(purrr)
+library(tidyr)
+library(knitr)
+```
+
+
+## Introduction 
+
+The data consist of metrological data over the past 50 years, each year has 10 measurements of sea surface temperature taken at 10 spatial location in the Atlantic Ocean within the past 6 months.  The response is the number of tropical storms that make landfall in the US Atlantic Coast. The goal of my investigation is model the data using three models then pick the best model and use this model to predict the number of storms to make landfall in the 50th year and the locations most predictive of these tropical storms. 
+
+##Methods
+For my experiment I used three models. All models are Poisson regression models with three different shrinkage priors. Poisson was used because the response consists of count data. Shrinkage or informative priors were used because the numbers of covariates(p) exceeds the numbers of observations(n) and because of this I think some of the covariates may not significant, and contributed noise to the overall model. 
+Let $Y_i$ be the number of tropical storms $i = 1, ..., 50$. 
+First model:
+$$
+Y_i\sim Poisson(\lambda_i)\\
+log(\lambda_i) \sim \beta_0 + \sum\limits_{j=1}^{p} \beta_j X_{i\;j }\\
+\beta_j \sim DoubleExpo(0, \sigma^{2}), \sigma^{2} \sim InvGamma(.01, .01)
+$$
+Second model:
+$$
+Y_i\sim Poisson(\lambda_i)\\
+log(\lambda_i) \sim \beta_0 + \sum\limits_{j=1}^{p} \beta_j X_{i\;j }\\
+\beta_j \sim Norm(0, \sigma^{2}), \sigma^{2} \sim InvGamma(.01, .01)
+$$
+Third model:
+$$
+Y_i\sim Poisson(\lambda_i)\\
+log(\lambda_i) \sim \beta_0 + \sum\limits_{j=1}^{p} \beta_j X_{i\;j }\\
+\beta_j \sim Cauchy(0, \sigma^{2}), \sigma^{2} \sim InvGamma(.01, .01)
+$$
+
+##Computation 
+Models were computed in R and JAGS. First the raw data containing the covariates was transformed into a 50 x 60 matrix. The data was divided into training and testing data. The first 44 rows were considered training data and the remaining testing. For all three models this data along with response was packaged into a list and passed into JAGS. JAGS was set up to run 2 chains with 20000 iterations for each chain where 10000 were cast away as burn-ins. Resulting in a total of 20000 posterior samples for all parameters with 10 thinning. All three of my models parameters converge where the Gelman test for all parameters is less than 1.1 for both the point estimates and upper CI. Samples size are large with model 3 showing the minimum sample size of 549 for parameter with month = 4 with location latitude = 4 and longitude= 1. As a result of the Gelman test and the large sample size, there is good convergence.
+
+##Model comparisons
+```{r echo=F}
+model<- c("Model 1", "Model 2", "Model 3")
+mean<- c(229.4 ,225,224  )
+penalty<- c(26.97, 30.84, 32.64)
+dic<- c(256.3 ,255.8, 256.6 )
+
+
+dt<- data.frame(model, mean, penalty, dic)
+
+colnames(dt)<- c("Models", "Mean deviance", "Penalty","Penalized deviance")
+kable(dt, format = "html", table.attr = "style='width:70%;'",  full_width = F, position = "center", bootstrap_options = "striped")
+```
+
+
+The table above shows the DIC calculation for each model. Model 1 has the largest mean deviance while model 3 has the smallest mean deviance indicating that model 3 fits the data better in comparison to the two other models. With penalty(PD), model 1 has the smallest followed by model 2 then model 3. Indicating that model 1 is the least complicated model out of the 3 proposed models. Penalized deviance (DIC) is the smallest for model 2 and largest for model 3. These differences are so small it not definitive. Because the DIC was not definitive , model 1 was selected as the best model because it was the least complicated models because of the low PD. 
+
+
+##Results
+```{r echo=F}
+month<- c(4,5,3)
+lat<- c(4,2,4)
+long<- c(1,1,0)
+l<- c(.02, .01, .01)
+m<- c(.25, .16, .15)
+h<- c(.49, .38, .38)
+me<- c(.24,.16,.16)
+sd<- c(.12,.10,.10)
+para<- c("beta_58","beta_47", "beta_27" )
+
+df1<- data.frame(para, month, lat, long, l, m, h, me, sd)
+
+names<- c("Alias", "Month", "Latitude", "Longitude", "2.5%", "50%", "97.5%", "Mean", "Sd")
+
+
+colnames(df1)<-names
+kable(df1, format = "html", table.attr = "style='width:70%;'",  full_width = F, position = "center", bootstrap_options = "striped")
+```
+
+Out of the 60 covariates only 3 were statistically significant because 0 was not in the credible interval. These variables are shown in the table above, with the corresponding summary statistics. As a result  month 4 with latitude 4 and 1, month 5 with latitude 2and 1 , and month 3 with latitude 4 and 1 were indicated by my chosen model as most predictive of these tropical storms. 
+
+##Prediction
+The prediction for year 50 is 11 storms with a 95% credible interval of 3 and 26 (As shown in the plot above for year 50). I have also shown my prediction against the actual storm count for year 45,46,47,48, and 49.  Years 45, 46 ,47 and 48 the predicted values are very close to the actual number of tropical storm. However, with year 49 my prediction is outside the credible set of 1 and 16 where the predicted values is 7 and the actual value is 17. 

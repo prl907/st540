@@ -1,0 +1,13 @@
+---
+title: "Untitled"
+author: "Robin"
+date: "April 14, 2019"
+output: word_document
+---
+
+
+$$
+Y_i\sim Poisson(\lambda_i)\\
+log(\lambda_i) \sim \beta_0 + \sum\limits_{j=1}^{p} \beta_j X_{i\;j }\\
+\beta_j \sim DoubleExpo(0, \sigma^{2}), \sigma^{2} \sim InvGamma(.01, .01)
+$$

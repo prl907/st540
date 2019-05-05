@@ -1,0 +1,234 @@
+---
+title: "RB_HW9"
+author: "Robin Baldeo"
+date: "March 30, 2019"
+output: word_document
+---
+
+```{r message = F, error=FALSE, warning=F,echo = T}
+  library("rjags")
+  library("MASS")
+```
+
+
+
+## Question 1
+```{r}
+
+y1<- c(2,-3.1, -1, .2, .3, .4)
+y2<- c(-3.5, -1.6, -4.6, -.9, -5.1, .1)
+
+#using frequentist way
+t.test(y1,y2)
+
+#mean 
+y1bar<- mean(y1)
+y2bar<- mean(y2)
+
+# baysian using formula for pop variance unkown
+s21<- var(y1)
+
+s22<- var(y2)
+
+sp<- sqrt((s21 + s22)/ 2)
+
+# using t table degeee of freedom n1 + n2 = 2.179 from t table
+#low bound 
+(y1bar- y2bar) - 2.179 * sp*sqrt(1/length(y1) +1/length(y2)  )
+
+
+# upper bound 
+(y1bar- y2bar) + 2.179 * sp* sqrt(1/length(y1) + 1/length(y2) )
+```
+
+Based on the results I don't think the prior has too much of an effect. When compared to the conventional t- test I get a ci  of [-.085, 4.8853] which is close to the Bayesian Ci [-.016, 4.82]. Both methods signify that there is no difference between the placebo and treatment  at the 95% ci, because 0 is within the interval. 
+
+
+## Question 2
+##(A)
+```{r}
+par(mar=c(1,1,1,1))
+data(Boston)
+
+#View(Boston)
+
+#response 
+y<- Boston$medv
+
+#covar
+x<- Boston[1:13]
+
+x<- as.matrix(x)
+
+
+n <- length(y)
+p <- ncol(x)
+
+# building a list 
+data   <- list(Y=y,X=x,n=n,p=p)
+
+model_string <- textConnection("model{
+   # Likelihood
+     for(i in 1:n){
+          Y[i] ~ dnorm(alpha+inprod(X[i,],beta[]),taue)
+     }
+     # Priors
+     for(j in 1:p){
+          beta[j] ~ dnorm(0,0.001)
+     }
+     alpha ~ dnorm(0,0.001)
+     taue  ~ dgamma(0.1, 0.1)
+}")
+
+
+model <- jags.model(model_string,data = data, n.chains=2,quiet=TRUE)
+
+update(model, 10000, progress.bar="none")
+
+params <- c("beta", "alpha")
+samples <- coda.samples(model,variable.names=params,n.iter=20000,thin=10,  progress.bar="none")
+
+#summary of beta and alpha
+summary(samples)
+
+# convergence diagnostics
+# plots
+plot(samples)
+
+# Low ESS indicates poor convergence, beta10 and the intercept have low sample size
+effectiveSize(samples)
+
+# R greater than 1.1 indicates poor convergence, therefore we have good convergence.
+gelman.diag(samples)
+```
+
+My sample size for ptratio appear a bit low, but according to the plots and the gelman test there appears to be good convergence. 
+
+##(B)
+```{r}
+#liner model
+lsModel<- lm(medv~., data= Boston)
+summary(lsModel)
+confint(lsModel)
+
+```
+Comparing the Bayesian linear regression model in part a (uninformative prior)  to the frequentist linear regression model. I don't see in major difference in the parameter means , sd and ci. It appears that both methods produce near identical results. 
+
+##(C)
+```{r}
+
+#model with double exponential prior
+model_string <- textConnection("model{
+   # Likelihood
+   for(i in 1:n){
+      Y[i] ~ dnorm(alpha+inprod(X[i,],beta[]),taue)
+   }
+   # Priors
+   for(j in 1:p){
+      beta[j] ~ dnorm(0,taue * taub)
+   }
+   alpha ~ dnorm(0,0.001)
+   taue  ~ dgamma(0.1, 0.1)
+   taub  ~ dgamma(0.1, 0.1)
+}")
+
+
+model <- jags.model(model_string,data = data, n.chains=2,quiet=TRUE)
+
+
+update(model, 10000, progress.bar="none")
+
+
+params <- c("beta", "alpha")
+samples <- coda.samples(model,variable.names=params,n.iter=20000,thin=10,  progress.bar="none")
+
+#summary data
+summary(samples)
+
+```
+
+Comparing the Bayesian linear regression model in part a (uninformative prior)  to part c, we see the all the summary values are different. It appears the prior has a greater effect on the data than in part a. Also, the ci in part c appears much more narrow , the means and sd for each parameter appears much smaller when compared to part a. 
+
+
+##(D)
+```{r}
+
+##data
+#taking the frist 500 rows 
+y<- Boston$medv[1:500]
+
+#taking the covar, 500 rows
+x<- (Boston[1:13])[1:500,]
+
+##ppd data to be passed to JAGS
+yPp<- y[495:500]
+xPp<- x[495:500, ]
+#scaling matrix
+X_<- as.matrix(xPp)
+
+
+#obs Data to be passed to JAGS
+Y<- y[1:494]
+xob<- x[1:494, ]
+#scaling 
+X<- as.matrix(xob)
+
+
+# of obs in obs matrix
+n <- length(Y)
+p <- ncol(xob)
+
+# of obs in predi matrix
+n_<- length(yPp)
+
+data   <- list(Y=Y,X=X,n=n,p=p, n_= n_, X_= X_)
+
+#jags model
+model_string <- textConnection("model{
+   # Likelihood
+   for(i in 1:n){
+    Y[i] ~ dnorm(alpha+inprod(X[i,],beta[]),taue)
+   }
+
+   # Priors
+   for(j in 1:p){
+    beta[j] ~ dnorm(0,0.001)
+   
+   }
+   
+   alpha ~ dnorm(0,0.001)
+   taue  ~ dgamma(0.1, 0.1)
+    
+  #prediction
+   for(i in 1:n_){
+    Y_[i] ~ dnorm(alpha+inprod(X_[i,],beta[]),taue)
+   }
+
+}")
+
+
+model <- jags.model(model_string,data = data, n.chains=2,quiet=TRUE)
+update(model, 10000, progress.bar="none")
+params <- c("Y_")
+
+samples <- coda.samples(model,variable.names=params,n.iter=20000,thin=10,  progress.bar="none")
+
+preM<- summary(samples)
+
+pMean<- preM$statistics[,1]
+
+sub<- samples[[1]]
+
+#plot the ppd 
+for(i in 1:length(yPp)){
+  plot(density(sub[,i]),xlab="Y",main=paste("PPD", i))
+  #true means
+  abline(v = yPp[i], col= "red")
+  #pred means
+  abline(v= pMean[i], col = "blue")
+  legend("topright", legend = c("True", "Predicted"),col=c("red", "blue"), lty=c(1,1), bty = "n")
+}
+```
+
+I think the predictions are reasonable, The above plots indicate this for each of the 6 plots showing the predicted means(blue) with the true means( red). As we can see these values are not too far apart. 
+

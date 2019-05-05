@@ -1,0 +1,123 @@
+---
+title: "HW 5"
+author: "Robin"
+date: "February 8, 2019"
+output: word_document
+---
+
+```{r message = F, error=FALSE, warning=F,echo = T}
+library(purrr)
+library(tidyr)
+library(knitr)
+library(invgamma)
+```
+
+
+
+### 2.3
+```{r}
+set.seed(6)
+
+b<- seq(0,1, by = .0001)
+
+a_ <- 0
+b_ <- 0
+
+#checking a range of values to get the 
+#appropiate a and b that meets conditions
+for(i in 1:length(b)){
+  a = (100*b[i]^2)
+  med = qgamma(.5,a,b[i])
+  if(med%>%round(0) == 75){
+      a_= a;b_ = b[i]
+      break
+  }
+}
+
+#condition 1, var = 100
+
+var<- a_/b_^2
+var
+
+#condition 2 median = 75
+
+med_<- rgamma(10000, a_, b_)%>%median()
+med_%>%round()
+```
+
+The prior that staify both conditions is `Gamma`(`r a_`, `r b_`)
+
+
+### 2.5
+
+```{r}
+
+#information given in exercise
+c= c(1,1,2,2)
+a<- c(.1,1,.1,1)
+
+#matrix to store values
+data<- matrix(.0,nrow = 4, ncol = 9)
+
+data[,1]<- c
+data[,2]<- a
+data[,3]<- a
+
+#function to build determine the sse
+sse <- function(){
+  x2=15;x=-2;n= 20
+  (x2/2)%>%return()
+}
+
+#function for the mean
+mean<- function(a, b){
+  n = 20
+  ((2*sse() +2* b)/((n -1) + (2 * a -1)))%>%return()
+}
+
+
+
+#calcuating the std
+for(i in 1:nrow(data)){
+  #post A
+  data[i,4]= (20/2) + data[i,3]
+  #post B
+  data[i,5] = (data[i,3]  + sse())
+  #P(sigma>c)
+  data[i,6] = 1- pinvgamma(data[i,1]^2, data[i,4], data[i,5])
+  # post mean
+  data[i,7] = mean(data[i,3], data[i,3])
+  # post std
+  data[i,8] = (sse()/(20-1))^.5
+  #adding random a and b to see what effect the prior had on the posterior
+  data[i,9] = mean(10, 10)
+  
+}
+
+df2<- as.data.frame(data)
+
+names(df2)<- c("c", "a", "b", "A", "B",  "postProb", "postMean", "postStd", "priorTest")
+
+df2%>%kable(caption = "Results Of Posterior")
+
+
+```
+
+The results for `P(`$\theta$`> c)` are in column `postProb`.  
+
+
+```{r}
+
+#P(sigma>c | c= 1, a=b=0.1) / P(sigma>c | c=1, a=b=1)
+
+r1 <- data[1,6]/data[2,6]
+
+#P(sigma>c | c= 2, a=b=0.1) / P(sigma>c | c=2, a=b=1)
+
+r2 <- data[3,6]/data[4,6]
+```
+
+The ratio when `c = 1` the ratio is `r r1` and when `c = 2` the ratio is `r r2`. Also, the posterior is very sensative to the prior. This is shown in column `priorTest` where the prior mean chnages greatly when I plug in any value for rate and shape. 
+
+
+
